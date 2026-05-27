@@ -3,7 +3,7 @@ const TelegramBot = require('node-telegram-bot-api')
 const moment = require('moment-timezone')
 
 const bot = new TelegramBot(
-  'TOKEN_BOT_KAMU',
+  '8949237246:AAFrvEQ_h9kU_G3-lPnSI3oTYannjned7SI',
   { polling: true }
 )
 
@@ -786,12 +786,7 @@ Contoh:
   let target =
   match[1]
 
-let {
-data:
-targetUser
-}
-=
-null
+let targetUser = null
 
 // kalau pakai @username 😭🔥
 if (
