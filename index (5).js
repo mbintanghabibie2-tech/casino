@@ -877,24 +877,6 @@ msg.chat.id,
   const challenger =
   await getUser(msg)
 
-  const {
-  data:
-  targetUser
-  }
-  =
-  await supabase
-
-  .from('users')
-
-  .select('*')
-
-  .eq(
-    'id',
-    target
-  )
-
-  .single()
-
   if (
     !targetUser
   ) {
@@ -1244,11 +1226,6 @@ Pemenang:
     )
 
   }
-
-  await bot.deleteMessage(
-  query.message.chat.id,
-  query.message.message_id
-  )
 
   // REJECT
   if (
