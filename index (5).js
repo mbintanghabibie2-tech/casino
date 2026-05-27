@@ -1,106 +1,52 @@
-const supabase =
-require('./database/supabase')
+const supabase = require('./database/supabase')
 const TelegramBot = require('node-telegram-bot-api')
-const fs = require('fs')
 const moment = require('moment-timezone')
 
 const bot = new TelegramBot(
-  '8949237246:AAFrvEQ_h9kU_G3-lPnSI3oTYannjned7SI',
+  'TOKEN_BOT_KAMU',
   { polling: true }
 )
 
 const ADMIN_ID = '5993350382'
 
-if (!fs.existsSync(FILE)) {
-  fs.writeFileSync(FILE, '{}')
-}
-
-if (!fs.existsSync(JACKPOT_FILE)) {
-  fs.writeFileSync(
-    JACKPOT_FILE,
-    '{}'
-  )
-}
-
-function {
-
-  return JSON.parse(
-    fs.readFileSync(FILE)
-  )
-}
-
-function {
-
-  fs.writeFileSync(
-    FILE,
-    JSON.stringify(data, null, 2)
-  )
-}
-
 async function getUser(msg) {
 
-const userId =
-msg.from.id
+  const userId = msg.from.id
 
-const {
-data: existing }
-=
-await supabase
+  const { data: existing } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single()
 
-.from('users')
-.select('*')
-.eq(
-'id',
-userId
-)
+  if (existing) {
+    return existing
+  }
 
-.single()
+  const newUser = {
+    id: userId,
+    username: msg.from.username || '-',
+    name: msg.from.first_name,
+    money: 300,
+    slot_limit: 100,
+    last_daily: null,
+    last_slot_reset: null
+  }
 
-if(
-existing
-) {
+  await supabase
+    .from('users')
+    .insert(newUser)
 
-return existing
-
-}
-
-const newUser = {
-
-id:
-userId,
-
-username:
-msg.from.username || '-',
-name:
-msg.from.first_name,
-
-money: 300,
-slot_limit: 100,
-last_daily: null,
-last_slot_reset: null
-
-}
-
-await supabase
-.from('users')
-.insert(newUser)
-
-return newUser
-
-}
-
-  return users[msg.from.id]
+  return newUser
 
 }
 
 function randomFruit() {
 
   const fruits = [
-
     '🍏',
     '🍅',
     '🍋'
-
   ]
 
   return fruits[
@@ -151,7 +97,6 @@ function countLines(board) {
 
   let lines = 0
 
-  // horizontal
   for (let row of board) {
 
     if (
@@ -163,7 +108,6 @@ function countLines(board) {
 
   }
 
-  // vertical
   for (let i = 0; i < 3; i++) {
 
     if (
@@ -175,7 +119,6 @@ function countLines(board) {
 
   }
 
-  // diagonal
   if (
     board[0][0] === board[1][1] &&
     board[1][1] === board[2][2]
@@ -195,7 +138,7 @@ function countLines(board) {
 }
 
 // START
-bot.onText(/\/start/, asyns (msg) => {
+bot.onText(/\/start/, async (msg) => {
 
   const user = await getUser(msg)
 
@@ -252,85 +195,6 @@ bot.onText(/\/profile/, async (msg) => {
 
 })
 
-// BUYLIMIT
-bot.onText(
-/\/buylimit (.+)/,
-
-(msg, match) => {
-
-  const amount =
-  Number(match[1])
-
-  const user =
-  await getUser(msg)
-
-  const price =
-  amount * 5
-
-  if(
-    user.money < price
-  ) {
-
-    return bot.sendMessage(
-
-      msg.chat.id,
-
-  `uang kamu kurang untuk beli limit
-
-  👉 Harga:
-  Rp${price}`
-
-   )
-
-  }
-
-  user.money -= price
-  user.slot_limit += amount
-
-  await supabase
-
-   .from('users')
-   .update({
-
-     money:
-     user.money,
-     slot_limit:
-     user.slot_limit,
-
-    last_slot_reset:
-    user.last_slot_reset
-
-    })
-    .eq('id',user.id) 
-
-   await supabase
-
-    .from('users')
-    .update({
-
-    money:
-    owner.money,
-    slot_limit:
-    owner.slot_limit
-
-     })
-   .eq('id',owner.id)
-
-  bot.sendMessage(
-   msg.chat.id,
-
- `☑️ Berhasil beli limit
-
- ⌛ +${amount} limit
- 💸 -Rp${price}
-
- ⏳ Total limit:
- ${user.slot_limit}/100`
-
-  )
-
-})
-
 // DAILY
 bot.onText(/\/daily/, async (msg) => {
 
@@ -354,7 +218,7 @@ bot.onText(/\/daily/, async (msg) => {
 
       msg.chat.id,
 
-'Kamu sudah claim daily hari ini'
+      'Kamu sudah claim daily hari ini'
 
     )
 
@@ -364,33 +228,12 @@ bot.onText(/\/daily/, async (msg) => {
   user.money += 50
 
   await supabase
-
-   .from('users')
-   .update({
-
-     money:
-     user.money,
-     slot_limit:
-     user.slot_limit,
-
-    last_slot_reset:
-    user.last_slot_reset
-
-    })
-    .eq('id',user.id) 
-
-   await supabase
-
     .from('users')
     .update({
-
-    money:
-    owner.money,
-    slot_limit:
-    owner.slot_limit
-
-     })
-   .eq('id',owner.id)
+      money: user.money,
+      last_daily: user.last_daily
+    })
+    .eq('id', user.id)
 
   bot.sendMessage(
 
@@ -406,25 +249,77 @@ bot.onText(/\/daily/, async (msg) => {
 
 })
 
-// LEADERBOARD
-bot.onText(
-/\/leaderboard/, async
-(msg) => {
+// BUYLIMIT
+bot.onText(/\/buylimit (.+)/, async (msg, match) => {
 
-  const sorted =
-  Object.values(users)
+  const amount =
+  Number(match[1])
 
-  .sort(
-    (a, b) =>
-    b.money - a.money
+  const user =
+  await getUser(msg)
+
+  const price =
+  amount * 5
+
+  if (
+    user.money < price
+  ) {
+
+    return bot.sendMessage(
+
+      msg.chat.id,
+
+`uang kamu kurang untuk beli limit
+
+👉 Harga:
+Rp${price}`
+
+    )
+
+  }
+
+  user.money -= price
+  user.slot_limit += amount
+
+  await supabase
+    .from('users')
+    .update({
+      money: user.money,
+      slot_limit: user.slot_limit
+    })
+    .eq('id', user.id)
+
+  bot.sendMessage(
+    msg.chat.id,
+
+`☑️ Berhasil beli limit
+
+⌛ +${amount} limit
+💸 -Rp${price}
+
+⏳ Total limit:
+${user.slot_limit}/100`
+
   )
 
-  .slice(0, 10)
+})
+
+// LEADERBOARD
+bot.onText(/\/leaderboard/, async (msg) => {
+
+  const { data: users } =
+  await supabase
+    .from('users')
+    .select('*')
+    .order('money', {
+      ascending: false
+    })
+    .limit(10)
 
   let text =
 '🏆 LEADERBOARD CASINO\n\n'
 
-  sorted.forEach((u, i) => {
+  users.forEach((u, i) => {
 
     text +=
 `${i + 1}. ${u.name}
@@ -444,10 +339,7 @@ bot.onText(
 })
 
 // ADMIN MINES
-bot.onText(
-/\/mines (.+) (.+)/,
-
-(msg, match) => {
+bot.onText(/\/mines (.+) (.+)/, async (msg, match) => {
 
   if (
     String(msg.from.id)
@@ -456,52 +348,39 @@ bot.onText(
   ) {
 
     return bot.sendMessage(
-
       msg.chat.id,
-
       '❌ Khusus owner'
-
     )
 
   }
 
-  const target =
-  match[1]
+  const target = match[1]
+  const amount = Number(match[2])
 
-  const amount =
-  Number(match[2])
+  const { data: targetUser } =
+  await supabase
+    .from('users')
+    .select('*')
+    .eq('id', target)
+    .single()
 
-  if (!users[target]) {
+  if (!targetUser) {
 
     return bot.sendMessage(
-
       msg.chat.id,
-
       'User tidak ditemukan'
-
     )
 
   }
 
-  users[target].money -= amount
+  targetUser.money -= amount
 
   await supabase
-
     .from('users')
-
     .update({
-
-    money:
-    user.money,
-
-    last_daily:
-    user.last_daily
-
+      money: targetUser.money
     })
-    .eq(
-    'id',
-    user.id
-    )
+    .eq('id', target)
 
   bot.sendMessage(
 
@@ -517,129 +396,111 @@ bot.onText(
 })
 
 // SLOT
-bot.onText(
-/\/slot/,
-async (msg) => {
-
+bot.onText(/\/slot/, async (msg) => {
   playSlot(msg)
-
 })
 
 async function playSlot(msg) {
 
-  const user =
-  await getUser(msg)
+  const user = await getUser(msg)
 
   const ownerId = 5993350382
-   let {
-   data:
-   owner
-    }
-   =
-   await supabase
-   .from('users')
-   .select('*')
-   .eq('id',ownerId)
-   .single()
 
-  if(!owner) {
+  let { data: owner } =
+  await supabase
+    .from('users')
+    .select('*')
+    .eq('id', ownerId)
+    .single()
+
+  if (!owner) {
 
     await supabase
-   .from('users')
-   .insert({
-     
-       id: ownerId,
-       username: 'pengembang',
-       name: 'Casino Owner',
-       money: 0,
-       slot_limit: 0
-     
-    })
+      .from('users')
+      .insert({
+        id: ownerId,
+        username: 'admin',
+        name: 'Casino Owner',
+        money: 0,
+        slot_limit: 0
+      })
 
-     const result = await supabase
+    const result = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', ownerId)
+      .single()
 
-     .from('users')
-     .select('*')
-     .eq('id',ownerId)
-     .single()
-
-     owner = result.data
-
-    }
-
-  const now =
-  moment()
-  .tz('Asia/Jakarta')
-
-  const today =
-  now.format(
-  'YYYY-MM-DD'
-  )
-
-  if(
-    user.last_slot_reset
-    !==today
-  ){
-
-    user.slot_limit = 100
-
-    user.last_slot_reset =
-    today
+    owner = result.data
 
   }
 
-  if(
+  const now =
+  moment().tz('Asia/Jakarta')
+
+  const today =
+  now.format('YYYY-MM-DD')
+
+  if (
+    user.last_slot_reset !== today
+  ) {
+
+    user.slot_limit = 100
+    user.last_slot_reset = today
+
+  }
+
+  if (
     user.slot_limit < 5
-  ){
+  ) {
 
     return bot.sendMessage(
 
-    msg.chat.id,
+      msg.chat.id,
 
-  `Limit slot hari ini habis
-   reset otomatis jam 00.00 wib
-      
-   beli limit: 1 limit = Rp5
-   contoh: /buylimit 100`
+`Limit slot hari ini habis
+reset otomatis jam 00.00 wib
+
+beli limit: 1 limit = Rp5
+contoh: /buylimit 100`
 
     )
 
   }
 
   if (user.money < 25) {
+
     return bot.sendMessage(
       msg.chat.id,
-    `uang tidak cukup untuk spin
-     modal untuk spin Rp25`
-      )
+`uang tidak cukup untuk spin
+modal untuk spin Rp25`
+    )
+
   }
+
   user.money -= 25
-  users[5993350382].money += 25
-  
   user.slot_limit -= 5
-  users[5993350382].slot_limit += 5
-  
-  const {data:jackpot}
-  =
+
+  owner.money += 25
+  owner.slot_limit += 5
+
+  const { data: jackpot } =
   await supabase
-  .from('jackpot')
-  .select('*')
-  .eq('id',1)
+    .from('jackpot')
+    .select('*')
+    .eq('id', 1)
+    .single()
 
-  .single()
+  const currentTime = Date.now()
 
-  const currentTime =
-  Date.now()
-
-  let canJackpot =
-  true
+  let canJackpot = true
 
   if (
     jackpot.last_jackpot
   ) {
 
+    const next =
       jackpot.last_jackpot +
-
       (
         3 *
         24 *
@@ -649,9 +510,7 @@ async function playSlot(msg) {
       )
 
     if (currentTime < next) {
-
       canJackpot = false
-
     }
 
   }
@@ -662,16 +521,12 @@ async function playSlot(msg) {
   const chance =
   Math.random() * 100
 
-  // kalah 75%
   if (chance < 75) {
 
     do {
 
-      board =
-      generateBoard()
-
-      lines =
-      countLines(board)
+      board = generateBoard()
+      lines = countLines(board)
 
     }
 
@@ -679,16 +534,12 @@ async function playSlot(msg) {
 
   }
 
-  // 1 line 18%
   else if (chance < 93) {
 
     do {
 
-      board =
-      generateBoard()
-
-      lines =
-      countLines(board)
+      board = generateBoard()
+      lines = countLines(board)
 
     }
 
@@ -696,16 +547,12 @@ async function playSlot(msg) {
 
   }
 
-  // 2 line 6%
   else if (chance < 99) {
 
     do {
 
-      board =
-      generateBoard()
-
-      lines =
-      countLines(board)
+      board = generateBoard()
+      lines = countLines(board)
 
     }
 
@@ -713,31 +560,24 @@ async function playSlot(msg) {
 
   }
 
-  // jackpot 1%
   else {
 
     if (canJackpot) {
 
       board = [
-
         ['🍏','🍏','🍏'],
         ['🍅','🍅','🍅'],
         ['🍋','🍋','🍋']
-
       ]
 
       lines = 3
 
       await supabase
-
-      .from('jackpot')
-      .update({last_jackpot:
-       currentTime
-       })
-
-      .eq('id',1)
-
-      saveJackpot(jackpot)
+        .from('jackpot')
+        .update({
+          last_jackpot: currentTime
+        })
+        .eq('id', 1)
 
     }
 
@@ -745,11 +585,8 @@ async function playSlot(msg) {
 
       do {
 
-        board =
-        generateBoard()
-
-        lines =
-        countLines(board)
+        board = generateBoard()
+        lines = countLines(board)
 
       }
 
@@ -819,25 +656,22 @@ ${boardText(board)}
 
   }
 
-  users[msg.from.id] = user
+  await supabase
+    .from('users')
+    .update({
+      money: user.money,
+      slot_limit: user.slot_limit,
+      last_slot_reset: user.last_slot_reset
+    })
+    .eq('id', user.id)
 
   await supabase
-
     .from('users')
-
     .update({
-
-    money:
-    user.money,
-
-    last_daily:
-    user.last_daily
-
+      money: owner.money,
+      slot_limit: owner.slot_limit
     })
-    .eq(
-    'id',
-    user.id
-    )
+    .eq('id', owner.id)
 
   bot.sendMessage(
 
@@ -851,7 +685,6 @@ ${boardText(board)}
     inline_keyboard: [[
 
       {
-
         text:
         '🔥 Putar Lagi 🔥',
 
@@ -869,238 +702,16 @@ ${boardText(board)}
 
 }
 
-// FIX CALLBACK
-bot.on(
-'callback_query',
+// CALLBACK
+bot.on('callback_query', async (query) => {
 
-async (query) => {
+  query.message.from = query.from
 
-  query.message.from =
-  query.from
-
-  // spin
   if (
     query.data === 'spin'
   ) {
 
-    playSlot(
-      query.message
-    )
-
-  }
-
-  // duel accept
-  if (
-    query.data.startsWith(
-      'accept_'
-    )
-  ) {
-
-    const split =
-    query.data.split('_')
-
-    const challenger =
-    split[1]
-
-    const target =
-    split[2]
-
-    const amount =
-    Number(split[3])
-
-    if (
-      String(query.from.id)
-      !==
-      String(target)
-    ) {
-
-      return bot.answerCallbackQuery(
-        query.id,
-        {
-          text:
-          'Ini bukan duel kamu'
-        }
-      )
-    }
-
-    if (
-      !users[challenger] ||
-      !users[target]
-    ) {
-
-      return
-    }
-
-    if (
-      users[challenger].money
-      < amount
-    ) {
-
-      return bot.sendMessage(
-
-        query.message.chat.id,
-
-        'Penantang uangnya kurang'
-
-      )
-
-    }
-
-    if (
-      users[target].money
-      < amount
-    ) {
-
-      return bot.sendMessage(
-
-        query.message.chat.id,
-
-        'Uang kamu kurang'
-
-      )
-
-    }
-
-    users[challenger].money -= amount
-    users[target].money -= amount
-
-    await supabase
-
-    .from('users')
-
-    .update({
-
-    money:
-    user.money,
-
-    last_daily:
-    user.last_daily
-
-    })
-    .eq(
-    'id',
-    user.id
-    )
-
-    // spin challenger
-    const board1 =
-    generateBoard()
-
-    const line1 =
-    countLines(board1)
-
-    // spin target
-    const board2 =
-    generateBoard()
-
-    const line2 =
-    countLines(board2)
-
-    bot.sendMessage(
-
-      query.message.chat.id,
-
-`🎰 HASIL @${users[challenger].username}
-
-${boardText(board1)}
-
-🔥 Total line:
-${line1}`
-
-    )
-
-    bot.sendMessage(
-
-      query.message.chat.id,
-
-`🎰 HASIL @${users[target].username}
-
-${boardText(board2)}
-
-🔥 Total line:
-${line2}`
-
-    )
-
-    let winner
-
-    if (line1 > line2) {
-
-      winner =
-      challenger
-
-    }
-
-    else if (
-      line2 > line1
-    ) {
-
-      winner =
-      target
-
-    }
-
-    else {
-
-      Math.random() < 0.5
-
-      ? challenger
-      : target
-
-      winner = random
-
-    }
-
-    users[winner].money +=
-    amount * 2
-
-    await supabase
-
-    .from('users')
-
-    .update({
-
-    money:
-    user.money,
-
-    last_daily:
-    user.last_daily
-
-    })
-    .eq(
-    'id',
-    user.id
-    )
-
-    bot.sendMessage(
-
-      query.message.chat.id,
-
-`🏆 Duel selesai
-
-Pemenang:
-@${users[winner].username}
-
-💰 mendapatkan Rp${amount * 2}`
-
-    )
-
-  }
-
-  // duel reject
-  if (
-    query.data.startsWith(
-      'reject_'
-    )
-  ) {
-
-    bot.sendMessage(
-
-      query.message.chat.id,
-
-'Duel ditolak'
-
-    )
+    playSlot(query.message)
 
   }
 
@@ -1110,7 +721,7 @@ Pemenang:
 bot.onText(
 /\/duel (.+) (.+)/,
 
-(msg, match) => {
+async (msg, match) => {
 
   if (
     msg.chat.type
@@ -1122,45 +733,143 @@ bot.onText(
 
       msg.chat.id,
 
-      `❌ Duel tidak tersedia dichat bot
-      
-      bisa digunakan hanya di grup
-      atau tambahkan saya ke grup`,
-      {
-         reply_markup: {
-           inline_keyboard: [[
-           {
-              text:
-              'join grup official casino',
+`❌ Duel tidak tersedia dichat bot
 
-              url:
-              'https://t.me/casinooogrup'
-            }
-          ]]
-         }
+bisa digunakan hanya di grup
+atau tambahkan saya ke grup`,
+
+{
+  reply_markup: {
+
+    inline_keyboard: [[
+
+      {
+
+        text:
+        'join grup official casino',
+
+        url:
+        'https://t.me/casinooogrup'
+
       }
+
+    ]]
+
+  }
+}
 
     )
 
   }
 
-  if (!match[1] || !match[2]) {
+  if (
+    !match[1] ||
+    !match[2]
+  ) {
 
     return bot.sendMessage(
+
       msg.chat.id,
 
-    `✖️ penggunaan salah!
+`✖️ penggunaan salah!
 
-    Format yg benar:
-     /duel (id lawan) (taruhan)
+Format yg benar:
+/duel (id lawan) (taruhan)
 
-    Contoh:
-     /duel 5993350382 200`
-      )
+Contoh:
+/duel 5993350382 200`
+
+    )
+
   }
 
-  const target =
+  let target =
   match[1]
+
+let {
+data:
+targetUser
+}
+=
+null
+
+// kalau pakai @username 😭🔥
+if (
+target.startsWith('@')
+) {
+
+const username =
+
+target
+.replace('@', '')
+
+const result =
+await supabase
+
+.from('users')
+
+.select('*')
+
+.eq(
+'username',
+username
+)
+
+.single()
+
+targetUser =
+result.data
+
+if (!targetUser) {
+
+return bot.sendMessage(
+
+msg.chat.id,
+
+'Username tidak ditemukan'
+
+)
+
+}
+
+target =
+targetUser.id
+
+}
+
+// kalau pakai ID 😭🔥
+else {
+
+const result =
+await supabase
+
+.from('users')
+
+.select('*')
+
+.eq(
+'id',
+target
+)
+
+.single()
+
+targetUser =
+result.data
+
+if (!targetUser) {
+
+return bot.sendMessage(
+
+msg.chat.id,
+
+'User tidak ditemukan'
+
+)
+
+}
+
+}
 
   const amount =
   Number(match[2])
@@ -1168,15 +877,33 @@ bot.onText(
   const challenger =
   await getUser(msg)
 
+  const {
+  data:
+  targetUser
+  }
+  =
+  await supabase
+
+  .from('users')
+
+  .select('*')
+
+  .eq(
+    'id',
+    target
+  )
+
+  .single()
+
   if (
-    !users[target]
+    !targetUser
   ) {
 
     return bot.sendMessage(
 
       msg.chat.id,
 
-      'User target belum pernah pakai bot, silahkan suruh /start di chat bot'
+'User target belum pernah pakai bot, suruh /start dulu'
 
     )
 
@@ -1197,6 +924,21 @@ bot.onText(
 
   }
 
+  if (
+    targetUser.money
+    < amount
+  ) {
+
+    return bot.sendMessage(
+
+      msg.chat.id,
+
+      'Uang target kurang'
+
+    )
+
+  }
+
   bot.sendMessage(
 
     msg.chat.id,
@@ -1207,7 +949,7 @@ bot.onText(
 mengajak
 
 ${target}
-(@${users[target].username})
+(@${targetUser.username})
 
 berduel dengan nominal
 Rp${amount}
@@ -1245,6 +987,285 @@ Apakah setuju?`,
 }
 
   )
+
+})
+
+// ACCEPT / REJECT DUEL
+bot.on(
+'callback_query',
+
+async (query) => {
+
+  query.message.from =
+  query.from
+
+  // SPIN
+  if (
+    query.data === 'spin'
+  ) {
+
+    return playSlot(
+      query.message
+    )
+
+  }
+
+  await bot.deleteMessage(
+  query.message.chat.id,
+  query.message.message_id
+  )
+
+  // ACCEPT
+  if (
+    query.data.startsWith(
+      'accept_'
+    )
+  ) {
+
+    const split =
+    query.data.split('_')
+
+    const challengerId =
+    split[1]
+
+    const targetId =
+    split[2]
+
+    const amount =
+    Number(split[3])
+
+    if (
+      String(query.from.id)
+      !==
+      String(targetId)
+    ) {
+
+      return bot.answerCallbackQuery(
+        query.id,
+        {
+          text:
+          'Ini bukan duel kamu'
+        }
+      )
+
+    }
+
+    const {
+      data:
+      challenger
+    }
+    =
+    await supabase
+
+    .from('users')
+
+    .select('*')
+
+    .eq(
+      'id',
+      challengerId
+    )
+
+    .single()
+
+    const {
+      data:
+      target
+    }
+    =
+    await supabase
+
+    .from('users')
+
+    .select('*')
+
+    .eq(
+      'id',
+      targetId
+    )
+
+    .single()
+
+    if (
+      !challenger ||
+      !target
+    ) {
+      return
+    }
+
+    if (
+      challenger.money
+      < amount
+    ) {
+
+      return bot.sendMessage(
+
+        query.message.chat.id,
+
+        'Uang penantang kurang'
+
+      )
+
+    }
+
+    if (
+      target.money
+      < amount
+    ) {
+
+      return bot.sendMessage(
+
+        query.message.chat.id,
+
+        'Uang target kurang'
+
+      )
+
+    }
+
+    challenger.money -= amount
+    target.money -= amount
+
+    const board1 =
+    generateBoard()
+
+    const line1 =
+    countLines(board1)
+
+    const board2 =
+    generateBoard()
+
+    const line2 =
+    countLines(board2)
+
+    bot.sendMessage(
+
+      query.message.chat.id,
+
+`🎰 HASIL @${challenger.username}
+
+${boardText(board1)}
+
+🔥 Total line:
+${line1}`
+
+    )
+
+    bot.sendMessage(
+
+      query.message.chat.id,
+
+`🎰 HASIL @${target.username}
+
+${boardText(board2)}
+
+🔥 Total line:
+${line2}`
+
+    )
+
+    let winner
+
+    if (
+      line1 > line2
+    ) {
+
+      winner =
+      challenger
+
+    }
+
+    else if (
+      line2 > line1
+    ) {
+
+      winner =
+      target
+
+    }
+
+    else {
+
+      winner =
+
+      Math.random() < 0.5
+
+      ? challenger
+      : target
+
+    }
+
+    winner.money +=
+    amount * 2
+
+    await supabase
+
+    .from('users')
+
+    .update({
+
+      money:
+      challenger.money
+
+    })
+
+    .eq(
+      'id',
+      challenger.id
+    )
+
+    await supabase
+
+    .from('users')
+
+    .update({
+
+      money:
+      target.money
+
+    })
+
+    .eq(
+      'id',
+      target.id
+    )
+
+    bot.sendMessage(
+
+      query.message.chat.id,
+
+`🏆 Duel selesai
+
+Pemenang:
+@${winner.username}
+
+💰 mendapatkan Rp${amount * 2}`
+
+    )
+
+  }
+
+  await bot.deleteMessage(
+  query.message.chat.id,
+  query.message.message_id
+  )
+
+  // REJECT
+  if (
+    query.data.startsWith(
+      'reject_'
+    )
+  ) {
+
+    bot.sendMessage(
+
+      query.message.chat.id,
+
+      'Duel ditolak'
+
+    )
+
+  }
 
 })
 
