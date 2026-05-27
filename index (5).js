@@ -1,3 +1,5 @@
+const supabase =
+require('./database/supabase')
 const TelegramBot = require('node-telegram-bot-api')
 const fs = require('fs')
 const moment = require('moment-timezone')
@@ -6,9 +8,6 @@ const bot = new TelegramBot(
   '8949237246:AAFrvEQ_h9kU_G3-lPnSI3oTYannjned7SI',
   { polling: true }
 )
-
-const FILE = './users.json'
-const JACKPOT_FILE = './jackpot.json'
 
 const ADMIN_ID = '5993350382'
 
@@ -23,66 +22,72 @@ if (!fs.existsSync(JACKPOT_FILE)) {
   )
 }
 
-function loadUsers() {
+function {
 
   return JSON.parse(
     fs.readFileSync(FILE)
   )
-
 }
 
-function saveUsers(data) {
+function {
 
   fs.writeFileSync(
     FILE,
     JSON.stringify(data, null, 2)
   )
+}
+
+async function getUser(msg) {
+
+const userId =
+msg.from.id
+
+const {
+data: existing }
+=
+await supabase
+
+.from('users')
+.select('*')
+.eq(
+'id',
+userId
+)
+
+.single()
+
+if(
+existing
+) {
+
+return existing
 
 }
 
-function loadJackpot() {
+const newUser = {
 
-  return JSON.parse(
-    fs.readFileSync(JACKPOT_FILE)
-  )
+id:
+userId,
+
+username:
+msg.from.username || '-',
+name:
+msg.from.first_name,
+
+money: 300,
+slot_limit: 100,
+last_daily: null,
+last_slot_reset: null
 
 }
 
-function saveJackpot(data) {
+await supabase
+.from('users')
+.insert(newUser)
 
-  fs.writeFileSync(
-    JACKPOT_FILE,
-    JSON.stringify(data, null, 2)
-  )
+return newUser
 
 }
-
-function getUser(msg) {
-
-  const users = loadUsers()
-
-  if (!users[msg.from.id]) {
-
-    users[msg.from.id] = {
-
-      id: msg.from.id,
-      username:
-      msg.from.username || '-',
-
-      name:
-      msg.from.first_name,
-
-      money: 300,
-      
-      lastDaily: null,
-      slotLimit: 100,
-      lastSlotReset : null
-
-    }
-
-    saveUsers(users)
-
-  }
 
   return users[msg.from.id]
 
@@ -190,9 +195,9 @@ function countLines(board) {
 }
 
 // START
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, asyns (msg) => {
 
-  const user = getUser(msg)
+  const user = await getUser(msg)
 
   bot.sendMessage(
 
@@ -201,7 +206,7 @@ bot.onText(/\/start/, (msg) => {
 `🎰 Selamat datang di Bot Casino Telegram Ter gacorr Ter aman, dijamin menang banyakkk tanpa deposit 🎰
 
 💰 Total uang : Rp${user.money}
-⏳ Total limit : ${user.slotLimit}/100
+⏳ Total limit : ${user.slot_limit}/100
 🆔 ID akun : ${user.id}`,
 
 {
@@ -227,9 +232,9 @@ bot.onText(/\/start/, (msg) => {
 })
 
 // PROFILE
-bot.onText(/\/profile/, (msg) => {
+bot.onText(/\/profile/, async (msg) => {
 
-  const user = getUser(msg)
+  const user = await getUser(msg)
 
   bot.sendMessage(
 
@@ -241,7 +246,7 @@ bot.onText(/\/profile/, (msg) => {
 👤 @${user.username}
 
 💰 Rp${user.money}
-⏳ ${user.slotLimit}/100`
+⏳ ${user.slot_limit}/100`
 
   )
 
@@ -256,11 +261,8 @@ bot.onText(
   const amount =
   Number(match[1])
 
-  const users =
-  loadUsers()
-
   const user =
-  getUser(msg)
+  await getUser(msg)
 
   const price =
   amount * 5
@@ -283,12 +285,36 @@ bot.onText(
   }
 
   user.money -= price
-  user.slotLimit += amount
+  user.slot_limit += amount
 
-  users[msg.from.id] =
-  user
+  await supabase
 
-  saveUsers(users)
+   .from('users')
+   .update({
+
+     money:
+     user.money,
+     slot_limit:
+     user.slot_limit,
+
+    last_slot_reset:
+    user.last_slot_reset
+
+    })
+    .eq('id',user.id) 
+
+   await supabase
+
+    .from('users')
+    .update({
+
+    money:
+    owner.money,
+    slot_limit:
+    owner.slot_limit
+
+     })
+   .eq('id',owner.id)
 
   bot.sendMessage(
    msg.chat.id,
@@ -299,18 +325,16 @@ bot.onText(
  💸 -Rp${price}
 
  ⏳ Total limit:
- ${user.slotLimit}/100`
+ ${user.slot_limit}/100`
 
   )
 
 })
 
 // DAILY
-bot.onText(/\/daily/, (msg) => {
+bot.onText(/\/daily/, async (msg) => {
 
-  const users = loadUsers()
-
-  const user = getUser(msg)
+  const user = await getUser(msg)
 
   const now =
   moment().tz(
@@ -323,7 +347,7 @@ bot.onText(/\/daily/, (msg) => {
   )
 
   if (
-    user.lastDaily === today
+    user.last_daily === today
   ) {
 
     return bot.sendMessage(
@@ -336,12 +360,37 @@ bot.onText(/\/daily/, (msg) => {
 
   }
 
-  user.lastDaily = today
+  user.last_daily = today
   user.money += 50
 
-  users[msg.from.id] = user
+  await supabase
 
-  saveUsers(users)
+   .from('users')
+   .update({
+
+     money:
+     user.money,
+     slot_limit:
+     user.slot_limit,
+
+    last_slot_reset:
+    user.last_slot_reset
+
+    })
+    .eq('id',user.id) 
+
+   await supabase
+
+    .from('users')
+    .update({
+
+    money:
+    owner.money,
+    slot_limit:
+    owner.slot_limit
+
+     })
+   .eq('id',owner.id)
 
   bot.sendMessage(
 
@@ -351,7 +400,7 @@ bot.onText(/\/daily/, (msg) => {
 
 💰 uang kamu +Rp50
 
-⏰ kembali lagi jam 02.00 WIB`
+⏰ kembali lagi jam 00.00 WIB`
 
   )
 
@@ -359,10 +408,8 @@ bot.onText(/\/daily/, (msg) => {
 
 // LEADERBOARD
 bot.onText(
-/\/leaderboard/,
+/\/leaderboard/, async
 (msg) => {
-
-  const users = loadUsers()
 
   const sorted =
   Object.values(users)
@@ -424,9 +471,6 @@ bot.onText(
   const amount =
   Number(match[2])
 
-  const users =
-  loadUsers()
-
   if (!users[target]) {
 
     return bot.sendMessage(
@@ -441,7 +485,23 @@ bot.onText(
 
   users[target].money -= amount
 
-  saveUsers(users)
+  await supabase
+
+    .from('users')
+
+    .update({
+
+    money:
+    user.money,
+
+    last_daily:
+    user.last_daily
+
+    })
+    .eq(
+    'id',
+    user.id
+    )
 
   bot.sendMessage(
 
@@ -459,7 +519,7 @@ bot.onText(
 // SLOT
 bot.onText(
 /\/slot/,
-(msg) => {
+async (msg) => {
 
   playSlot(msg)
 
@@ -467,25 +527,45 @@ bot.onText(
 
 async function playSlot(msg) {
 
-  const users =
-  loadUsers()
-
   const user =
-  getUser(msg)
+  await getUser(msg)
 
-  if (!users[5993350382]) {
+  const ownerId = 5993350382
+   let {
+   data:
+   owner
+    }
+   =
+   await supabase
+   .from('users')
+   .select('*')
+   .eq('id',ownerId)
+   .single()
 
-    users[5993350382] = {
+  if(!owner) {
 
-      id: 5993350382,
-      username:'admin',
-      name: 'Casino Owner',
-      money: 0,
-      slotLimit: 0
+    await supabase
+   .from('users')
+   .insert({
+     
+       id: ownerId,
+       username: 'pengembang',
+       name: 'Casino Owner',
+       money: 0,
+       slot_limit: 0
+     
+    })
+
+     const result = await supabase
+
+     .from('users')
+     .select('*')
+     .eq('id',ownerId)
+     .single()
+
+     owner = result.data
 
     }
-
-  }
 
   const now =
   moment()
@@ -497,19 +577,19 @@ async function playSlot(msg) {
   )
 
   if(
-    user.lastSlotReset
+    user.last_slot_reset
     !==today
   ){
 
-    user.slotLimit = 100
+    user.slot_limit = 100
 
-    user.lastSlotReset =
+    user.last_slot_reset =
     today
 
   }
 
   if(
-    user.slotLimit < 5
+    user.slot_limit < 5
   ){
 
     return bot.sendMessage(
@@ -536,12 +616,17 @@ async function playSlot(msg) {
   user.money -= 25
   users[5993350382].money += 25
   
-  user.slotLimit -= 5
-  users[5993350382].slotLimit += 5
+  user.slot_limit -= 5
+  users[5993350382].slot_limit += 5
   
+  const {data:jackpot}
+  =
+  await supabase
+  .from('jackpot')
+  .select('*')
+  .eq('id',1)
 
-  const jackpot =
-  loadJackpot()
+  .single()
 
   const currentTime =
   Date.now()
@@ -550,12 +635,10 @@ async function playSlot(msg) {
   true
 
   if (
-    jackpot.lastJackpot
+    jackpot.last_jackpot
   ) {
 
-    const next =
-
-      jackpot.lastJackpot +
+      jackpot.last_jackpot +
 
       (
         3 *
@@ -645,8 +728,14 @@ async function playSlot(msg) {
 
       lines = 3
 
-      jackpot.lastJackpot =
-      currentTime
+      await supabase
+
+      .from('jackpot')
+      .update({last_jackpot:
+       currentTime
+       })
+
+      .eq('id',1)
 
       saveJackpot(jackpot)
 
@@ -681,7 +770,7 @@ ${boardText(board)}
 
 kurang beruntung.
 💸 uang kamu -Rp25
-⏳ sisa limit: ${user.slotLimit}/100`
+⏳ sisa limit: ${user.slot_limit}/100`
 
   }
 
@@ -696,7 +785,7 @@ ${boardText(board)}
 
 🎉 selamat kamu menang
 💰 uang kamu +Rp50
-⏳ sisa limit: ${user.slotLimit}/100`
+⏳ sisa limit: ${user.slot_limit}/100`
 
   }
 
@@ -711,7 +800,7 @@ ${boardText(board)}
 
 🔥 gokill menang 2 baris
 💰 uang kamu +Rp150
-⏳ sisa limit: ${user.slotLimit}/100`
+⏳ sisa limit: ${user.slot_limit}/100`
 
   }
 
@@ -726,13 +815,29 @@ ${boardText(board)}
 
 🏆 JACKPOT GEDE NIH🔥
 💰 uang kamu +Rp3.000
-⏳ sisa limit: ${user.slotLimit}/100`
+⏳ sisa limit: ${user.slot_limit}/100`
 
   }
 
   users[msg.from.id] = user
 
-  saveUsers(users)
+  await supabase
+
+    .from('users')
+
+    .update({
+
+    money:
+    user.money,
+
+    last_daily:
+    user.last_daily
+
+    })
+    .eq(
+    'id',
+    user.id
+    )
 
   bot.sendMessage(
 
@@ -816,11 +921,7 @@ async (query) => {
           'Ini bukan duel kamu'
         }
       )
-
     }
-
-    const users =
-    loadUsers()
 
     if (
       !users[challenger] ||
@@ -863,7 +964,23 @@ async (query) => {
     users[challenger].money -= amount
     users[target].money -= amount
 
-    saveUsers(users)
+    await supabase
+
+    .from('users')
+
+    .update({
+
+    money:
+    user.money,
+
+    last_daily:
+    user.last_daily
+
+    })
+    .eq(
+    'id',
+    user.id
+    )
 
     // spin challenger
     const board1 =
@@ -925,8 +1042,6 @@ ${line2}`
 
     else {
 
-      const random =
-
       Math.random() < 0.5
 
       ? challenger
@@ -939,7 +1054,23 @@ ${line2}`
     users[winner].money +=
     amount * 2
 
-    saveUsers(users)
+    await supabase
+
+    .from('users')
+
+    .update({
+
+    money:
+    user.money,
+
+    last_daily:
+    user.last_daily
+
+    })
+    .eq(
+    'id',
+    user.id
+    )
 
     bot.sendMessage(
 
@@ -1034,11 +1165,8 @@ bot.onText(
   const amount =
   Number(match[2])
 
-  const users =
-  loadUsers()
-
   const challenger =
-  getUser(msg)
+  await getUser(msg)
 
   if (
     !users[target]
