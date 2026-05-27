@@ -997,10 +997,11 @@ async (query) => {
     query.data.startsWith(
       'accept_'
     )
-  ) await bot.deleteMessage(
-    query.message.chat.id,
-    query.message.message_id
-    ) {
+  ) { 
+    await bot.deleteMessage(
+      query.message.chat.id,
+      query.message.message_id
+    )
 
     const split =
     query.data.split('_')
@@ -1237,10 +1238,11 @@ Pemenang:
     query.data.startsWith(
       'reject_'
     )
-  ) await bot.deleteMessage(
-    query.message.chat.id,
-    query.message.message_id
-) {
+  ) {
+    await bot.deleteMessage(
+      query.message.chat.id,
+      query.message.message_id
+    )
 
     bot.sendMessage(
 
