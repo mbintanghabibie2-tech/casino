@@ -992,17 +992,15 @@ async (query) => {
 
   }
 
-  await bot.deleteMessage(
-  query.message.chat.id,
-  query.message.message_id
-  )
-
   // ACCEPT
   if (
     query.data.startsWith(
       'accept_'
     )
-  ) {
+  ) await bot.deleteMessage(
+    query.message.chat.id,
+    query.message.message_id
+    ) {
 
     const split =
     query.data.split('_')
@@ -1211,6 +1209,13 @@ ${line2}`
       'id',
       target.id
     )
+    // save winner 😭🔥
+     await supabase
+     .from('users')
+     .update({
+     money: winner.money
+     })
+     .eq('id', winner.id)
 
     bot.sendMessage(
 
@@ -1232,7 +1237,10 @@ Pemenang:
     query.data.startsWith(
       'reject_'
     )
-  ) {
+  ) await bot.deleteMessage(
+    query.message.chat.id,
+    query.message.message_id
+) {
 
     bot.sendMessage(
 
