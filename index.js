@@ -15,7 +15,7 @@ require('moment-timezone')
 const bot =
 new TelegramBot(
 
-'8949237246:AAFrvEQ_h9kU_G3-lPnSI3oTYannjned7SI',
+'8949237246:AAHqZyAasGc79FWifLVU2FQ358F_zYRjhv4',
 
 {
 polling: true
